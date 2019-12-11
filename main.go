@@ -114,10 +114,10 @@ func updateStats() {
 
 func main() {
 	torrents := map[string]*Torrent{}
-	torrents = updateStats()
+	torrents := updateStats()
 
 	setInterval(func() {
-		torrents= updateStats()
+		torrents := updateStats()
 	}, 1800*1000, true)
 
 	etc.MFS.Add(http.Dir("www"))
