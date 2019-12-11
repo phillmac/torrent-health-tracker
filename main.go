@@ -75,7 +75,10 @@ func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
 
 }
 
-func updateStats(torrents map[string]*Torrent) {
+var torrents = make(map[string]*Torrent{})
+
+func updateStats() {
+	var results []torrent
 	util.Log("Updating stats")
 	resp, err := http.Get("https://phillm.net/libgen-stats.php")
 	if err != nil {
@@ -88,9 +91,9 @@ func updateStats(torrents map[string]*Torrent) {
 		util.LogError("Failed to read body", err.Error())
 		return
 	}
-	json.Unmarshal([]byte(body), &torrents)
+	json.Unmarshal([]byte(body), &results)
 
-	for _, torrent := range torrents {
+	for _, torrent := range results {
 		seeders := 0
 		leechers := 0
 		for _, v := range torrent.TrackerData {
@@ -101,6 +104,7 @@ func updateStats(torrents map[string]*Torrent) {
 		}
 		torrent.Seeders = seeders
 		torrent.Leechers = leechers
+		torrents[torrent.hash] = torrent
 	}
 
 	util.Log("Torrent count:", len(torrents))
@@ -108,10 +112,10 @@ func updateStats(torrents map[string]*Torrent) {
 
 func main() {
 	torrents := map[string]*Torrent{}
-	updateStats(torrents)
+	updateStats()
 
 	setInterval(func() {
-		updateStats(torrents)
+		updateStats()
 	}, 1800*1000, true)
 
 	etc.MFS.Add(http.Dir("www"))
