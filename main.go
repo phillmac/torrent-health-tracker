@@ -75,7 +75,7 @@ func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
 
 }
 
-var torrents = map[string]*Torrent{}
+var torrents = make(map[string]*Torrent{})
 
 func updateStats() {
 	util.Log("Updating stats")
