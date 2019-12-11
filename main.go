@@ -1,124 +1,126 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"net/url"
-	"sync"
 	"time"
-
-	"github.com/anacrolix/torrent/bencode"
-	"github.com/nektro/go-util/alias"
+	"os"
+	
 	"github.com/nektro/go-util/util"
 	etc "github.com/nektro/go.etc"
 	"github.com/rakyll/statik/fs"
-	"github.com/spf13/pflag"
 
-	_ "github.com/nektro/torrent-health-tracker/statik"
+
+
+
 )
 
-type TrackerResponse struct {
-	FailReason  string        `bencode:"failure reason"`
-	WarnMsg     string        `bencode:"warning message"`
-	Interval    int           `bencode:"interval"`
-	MinInterval int           `bencode:"min interval"`
-	TrackerID   string        `bencode:"tracker id"`
-	Complete    int           `bencode:"complete"`
-	Incomplete  int           `bencode:"incomplete"`
-	Peers       []TrackerPeer `bencode:"peers"`
-	PeersB      string        `bencode:"peers"`
+
+type DHTData struct {
+	Hash     	string 	`json:"infoHash"`
+	Name     	string
+	Peers    	int
+	ScrapedDate 	int 	`json:"scraped_date"`
 }
 
-type TrackerPeer struct {
-	PeerID string `bencode:"peer id"`
-	IP     string `bencode:"ip"`
-	Port   int    `bencode:"port"`
+type TrackerData struct {
+	Hash     	string 	`json:"infoHash"`
+	Seeders  	int 	`json:"complete"`
+	Leechers 	int 	`json:"incomplete"`
+	ScrapedDate 	int 	`json:"scraped_date"`
 }
 
 type Torrent struct {
-	Hash     string
-	Name     string
-	Seeders  int
-	Leechers int
+	Hash     	string	`json:"_id"`
+	Name     	string
+	Size     	int	`json: "size_bytes"`
+	Link		string
+	Seeders  	int
+	Leechers 	int
+	DHTData 	DHTData
+	TrackerData 	map[string]TrackerData{}
 }
 
-var client = &http.Client{
-	Timeout: time.Second * 1,
+func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
+
+        // How often to fire the passed in function 
+        // in milliseconds
+        interval := time.Duration(milliseconds) * time.Millisecond
+
+        // Setup the ticker and the channel to signal
+        // the ending of the interval
+        ticker := time.NewTicker(interval)
+        clear := make(chan bool)
+
+        // Put the selection in a go routine
+        // so that the for loop is non-blocking
+        go func() {
+            for {
+
+                select {
+                case <-ticker.C:
+                    if async {
+                        // This won't block
+                        go someFunc()
+                    } else {
+                        // This will block
+                        someFunc()
+                    }
+                case <-clear:
+                    ticker.Stop()
+                    return
+                }
+
+            }
+        }()
+
+        // We return the channel so we can pass in 
+        // a value to it to clear the interval
+        return clear
+
 }
+
 
 func main() {
 
-	flagTR := pflag.StringArrayP("tracker", "t", []string{}, "")
-	flagMG := pflag.StringArrayP("magnet", "m", []string{}, "")
-
-	pflag.Parse()
-
-	//
-
-	trackers := []string{}
-
-	for i, item := range *flagTR {
-		urlO, _ := url.Parse(item)
-
-		if urlO.Scheme == "http" {
-			req, err := http.NewRequest(http.MethodGet, item, nil)
-			if err != nil {
-				util.LogWarn("tracker:", alias.F("[%d/%d]:", i+1, len(*flagTR)), item, err.Error())
-				continue
-			}
-			res, err := client.Do(req)
-			if err != nil {
-				util.LogWarn("tracker:", alias.F("[%d/%d]:", i+1, len(*flagTR)), item, err.Error())
-				continue
-			}
-			ioutil.ReadAll(res.Body)
-			util.Log("tracker:", alias.F("[%d/%d]:", i+1, len(*flagTR)), item)
-			trackers = append(trackers, item)
-
-		} else {
-			util.LogError("tracker:", alias.F("[%d/%d]:", i+1, len(*flagTR)), "unknown scheme:", urlO.Scheme)
+	var torrents []Torrent
+	
+	func updateStats () {
+		util.Log("Updating stats")
+		resp, err := http.Get("https://phillm.net/libgen-stats.php")
+		if err != nil {
+			util.LogError("Failed to fetch stats", err.Error())
+			return
 		}
-	}
-
-	//
-
-	torrents := map[string]*Torrent{}
-
-	//
-
-	for i, item := range *flagMG {
-		urlO, _ := url.Parse(item)
-		qu := urlO.Query()
-
-		btih := qu["xt"][0][9:]
-		name := qu["dn"][0]
-
-		seeders := 0
-		leechers := 0
-
-		wg := new(sync.WaitGroup)
-		wg.Add(len(trackers))
-
-		for _, jtem := range trackers {
-			lkn := jtem
-			go func() {
-				s, l, _ := queryTracker(lkn, btih)
-				seeders += s
-				leechers += l
-				wg.Done()
-			}()
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			util.LogError("Failed to read body", err.Error())
+			return
 		}
-
-		wg.Wait()
-
-		t := &Torrent{btih, name, seeders, leechers}
-		torrents[btih] = t
-		util.Log(alias.F("[%d/%d]:", i+1, len(*flagMG)), alias.F("%+v", t))
+		json.Unmarshal([]byte(body), &torrents)
+		
+		for _,torrent  := range torrents {
+			seeders := 0
+			leechers := 0
+			for k, v := range torrent.TrackerData {
+				if v.Seeders > seeders {
+					seeders = v.Seeders
+					leechers = v.leechers
+				}
+			}
+			torrent.Seeders = seeders
+			torrent.Leechers = leechers
+		}
+		
+		util.Log("Torrent count:", len(torrents))
 	}
-
-	//
+	
+	setInterval(func() {
+		updateStats()
+	}, 1800 * 1000, true)
+	
 
 	etc.MFS.Add(http.Dir("www"))
 
@@ -136,46 +138,4 @@ func main() {
 	http.ListenAndServe(":80", nil)
 }
 
-func queryTracker(urlS string, btih string) (int, int, error) {
-	urlP, _ := url.Parse(urlS)
 
-	if urlP.Scheme == "http" {
-
-		v := url.Values{}
-		v.Add("info_hash", string(hashToBin(btih)))
-		v.Add("peer_id", random(20))
-		v.Add("port", "6882")
-
-		u := (urlS + "?" + v.Encode())
-		q, _ := http.NewRequest(http.MethodGet, u, nil)
-		s, err := client.Do(q)
-		if err != nil {
-			// util.LogWarn(err.Error())
-			return 0, 0, err
-		}
-		b, err := ioutil.ReadAll(s.Body)
-		util.DieOnError(err)
-
-		tr := TrackerResponse{}
-		bencode.Unmarshal(b, &tr)
-
-		return tr.Complete, tr.Incomplete, nil
-	}
-	return 0, 0, nil
-}
-
-func hashToBin(h string) []byte {
-	b := make([]byte, hex.DecodedLen(len(h)))
-	_, err := hex.Decode(b, []byte(h))
-	util.DieOnError(err)
-	return b
-}
-
-func random(l int) string {
-	if l%4 != 0 {
-		return ""
-	}
-	b := make([]byte, l/4)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
