@@ -75,11 +75,8 @@ func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
 
 }
 
-var torrents = make(map[string]*Torrent{})
-
-func updateStats() {
+func updateStats() []torrent {
 	var results []torrent
-	torrents := map[string]*Torrent{}
 	util.Log("Updating stats")
 	resp, err := http.Get("https://phillm.net/libgen-stats.php")
 	if err != nil {
@@ -105,19 +102,22 @@ func updateStats() {
 		}
 		torrent.Seeders = seeders
 		torrent.Leechers = leechers
-		torrents[torrent.hash] = torrent
 	}
 
-	util.Log("Torrent count:", len(torrents))
-	return torrents
+	util.Log("Torrent count:", len(results))
+	return 
 }
 
 func main() {
 	torrents := map[string]*Torrent{}
-	torrents = &updateStats()
+	for _, t := range updateStats() {
+		torrents[t.Hash] = t
+	}
 
 	setInterval(func() {
-		torrents = &updateStats()
+		for _, t := range updateStats() {
+		torrents[t.Hash] = t
+	}
 	}, 1800*1000, true)
 
 	etc.MFS.Add(http.Dir("www"))
