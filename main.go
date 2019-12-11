@@ -75,9 +75,7 @@ func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
 
 }
 
-var torrents = make(map[string]*Torrent)
-
-func updateStats() {
+func updateStats(map[string]*Torrent{} torrents) {
 	util.Log("Updating stats")
 	resp, err := http.Get("https://phillm.net/libgen-stats.php")
 	if err != nil {
@@ -109,10 +107,11 @@ func updateStats() {
 }
 
 func main() {
-	updateStats()
+	torrents := map[string]*Torrent{}
+	updateStats(torrents)
 
 	setInterval(func() {
-		updateStats()
+		updateStats(torrents)
 	}, 1800*1000, true)
 
 	etc.MFS.Add(http.Dir("www"))
