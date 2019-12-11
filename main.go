@@ -79,6 +79,7 @@ var torrents = make(map[string]*Torrent{})
 
 func updateStats() {
 	var results []torrent
+	torrents := map[string]*Torrent{}
 	util.Log("Updating stats")
 	resp, err := http.Get("https://phillm.net/libgen-stats.php")
 	if err != nil {
@@ -108,14 +109,15 @@ func updateStats() {
 	}
 
 	util.Log("Torrent count:", len(torrents))
+	return torrents
 }
 
 func main() {
 	torrents := map[string]*Torrent{}
-	updateStats()
+	torrents = updateStats()
 
 	setInterval(func() {
-		updateStats()
+		torrents= updateStats()
 	}, 1800*1000, true)
 
 	etc.MFS.Add(http.Dir("www"))
