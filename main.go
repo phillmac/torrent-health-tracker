@@ -39,7 +39,7 @@ type Torrent struct {
 	Seeders  	int
 	Leechers 	int
 	DHTData 	DHTData
-	TrackerData 	map[string]TrackerData
+	TrackerData 	map[string]*TrackerData
 }
 
 func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
