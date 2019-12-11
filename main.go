@@ -110,6 +110,7 @@ func updateStats() {
 }
 
 func main() {
+	updateStats()
 
 	setInterval(func() {
 		updateStats()
