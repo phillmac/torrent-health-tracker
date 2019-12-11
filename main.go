@@ -95,7 +95,7 @@ func updateStats() {
 	for _, torrent := range torrents {
 		seeders := 0
 		leechers := 0
-		for k, v := range torrent.TrackerData {
+		for _, v := range torrent.TrackerData {
 			if v.Seeders > seeders {
 				seeders = v.Seeders
 				leechers = v.Leechers
