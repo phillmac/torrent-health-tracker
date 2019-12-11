@@ -75,7 +75,7 @@ func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
 
 }
 
-func updateStats(map[string]*Torrent torrents) {
+func updateStats(torrents map[string]*Torrent{}) {
 	util.Log("Updating stats")
 	resp, err := http.Get("https://phillm.net/libgen-stats.php")
 	if err != nil {
