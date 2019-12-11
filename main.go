@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/nektro/go-util/util"
@@ -99,7 +98,7 @@ func updateStats() {
 		for k, v := range torrent.TrackerData {
 			if v.Seeders > seeders {
 				seeders = v.Seeders
-				leechers = v.leechers
+				leechers = v.Leechers
 			}
 		}
 		torrent.Seeders = seeders
