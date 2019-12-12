@@ -123,7 +123,7 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		results := map[string]Torrent
+		results := map[string]Torrent{}
 		for _, t := range torrents {
 			results[t.Hash] = t
 		}
