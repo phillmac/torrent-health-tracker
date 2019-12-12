@@ -75,8 +75,9 @@ func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
 
 }
 
-func updateStats() []Torrent {
-	var results []Torrent
+var torrents []Torrent
+
+func updateStats() {
 	util.Log("Updating stats")
 	resp, err := http.Get("https://phillm.net/libgen-stats.php")
 	if err != nil {
@@ -89,9 +90,9 @@ func updateStats() []Torrent {
 		util.LogError("Failed to read body", err.Error())
 		return
 	}
-	json.Unmarshal([]byte(body), &results)
+	json.Unmarshal([]byte(body), &torrents)
 
-	for _, torrent := range results {
+	for _, torrent := range torrents {
 		seeders := 0
 		leechers := 0
 		for _, v := range torrent.TrackerData {
@@ -104,21 +105,14 @@ func updateStats() []Torrent {
 		torrent.Leechers = leechers
 	}
 
-	util.Log("Torrent count:", len(results))
-	return results
+	util.Log("Torrent count:", len(torrents))
 }
 
 func main() {
-	torrents := map[string]*Torrent{}
-
-	for _, t := range updateStats() {
-		torrents[t.Hash] = &t
-	}
+	updateStats()
 
 	setInterval(func() {
-		for _, t := range updateStats() {
-		torrents[t.Hash] = &t
-	}
+		updateStats()
 	}, 1800*1000, true)
 
 	etc.MFS.Add(http.Dir("www"))
@@ -129,8 +123,12 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		results := map[string]*Torrent{}
+		for i, t := range torrents {
+			results[t.Hash] = t
+		}
 		etc.WriteHandlebarsFile(r, w, "/index.hbs", map[string]interface{}{
-			"torrents": torrents,
+			"torrents": results,
 		})
 	})
 
