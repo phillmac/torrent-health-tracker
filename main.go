@@ -79,7 +79,7 @@ var torrents []*Torrent
 
 func updateStats() {
 	util.Log("Updating stats")
-	resp, err := http.Get("https://phillm.net/libgen-stats.php")
+	resp, err := http.Get("https://phillm.net/libgen-stats3.php")
 	if err != nil {
 		util.LogError("Failed to fetch stats", err.Error())
 		return
