@@ -124,7 +124,7 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		results := map[string]*Torrent{}
-		for i, t := range torrents {
+		for _, t := range torrents {
 			results[t.Hash] = &t
 		}
 		etc.WriteHandlebarsFile(r, w, "/index.hbs", map[string]interface{}{
