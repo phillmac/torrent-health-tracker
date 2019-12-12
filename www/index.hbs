@@ -41,7 +41,14 @@
                 <th>Leechers</th>
             </thead>
             <tbody>
-                
+                {{#each torrents}}
+                <tr>
+                    <td>🧲 {{Hash}}</td>
+                    <td>{{Name}}</td>
+                    <td>{{Seeders}}</td>
+                    <td>{{Leechers}}</td>
+                </tr>
+                {{/each}}
             </tbody>
         </table>
     </body>
