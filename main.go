@@ -75,7 +75,7 @@ func setInterval(someFunc func(), milliseconds int, async bool) chan bool {
 
 }
 
-var torrents []Torrent
+var torrents []*Torrent
 
 func updateStats() {
 	util.Log("Updating stats")
@@ -90,7 +90,7 @@ func updateStats() {
 		util.LogError("Failed to read body", err.Error())
 		return
 	}
-	json.Unmarshal([]byte(body), &torrents)
+	json.Unmarshal(body, &torrents)
 
 	for _, torrent := range torrents {
 		seeders := 0
@@ -111,19 +111,18 @@ func updateStats() {
 func main() {
 	updateStats()
 
-	setInterval(func() {
-		updateStats()
-	}, 1800*1000, true)
+	setInterval(updateStats, 1800*1000, true)
+
 
 	etc.MFS.Add(http.Dir("www"))
 
 	statikFS, err := fs.New()
 	if err == nil {
-		etc.MFS.Add(http.FileSystem(statikFS))
+		etc.MFS.Add(statikFS)
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		results := map[string]Torrent{}
+		results := map[string]*Torrent{}
 		for _, t := range torrents {
 			results[t.Hash] = t
 		}
@@ -132,5 +131,5 @@ func main() {
 		})
 	})
 
-	http.ListenAndServe(":80", nil)
+	util.LogError(http.ListenAndServe(":80", nil))
 }
