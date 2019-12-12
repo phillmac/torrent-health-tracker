@@ -105,18 +105,19 @@ func updateStats() []Torrent {
 	}
 
 	util.Log("Torrent count:", len(results))
-	return 
+	return results
 }
 
 func main() {
 	torrents := map[string]*Torrent{}
+
 	for _, t := range updateStats() {
-		torrents[t.Hash] = t
+		torrents[t.Hash] = &t
 	}
 
 	setInterval(func() {
 		for _, t := range updateStats() {
-		torrents[t.Hash] = t
+		torrents[t.Hash] = &t
 	}
 	}, 1800*1000, true)
 
